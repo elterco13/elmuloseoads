@@ -5,216 +5,163 @@ import os
 import json
 import datetime
 
-st.set_page_config(page_title="SEO Ads Generator", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="SEO Ads Generator PRO", page_icon="🎯", layout="wide")
 
-# Inicializar estado de memoria de sesión (sin guardado en disco para compatibilidad Cloud)
+# Estilos CSS personalizados para el reporte y previsualización
+st.markdown("""
+    <style>
+    .ad-preview { border: 1px solid #dfe1e5; border-radius: 8px; padding: 15px; background: white; margin-bottom: 10px; }
+    .ad-url { color: #202124; font-size: 13px; }
+    .ad-title { color: #1a0dab; font-size: 18px; text-decoration: none; }
+    .ad-desc { color: #4d5156; font-size: 14px; }
+    .metric-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border-left: 5px solid #007bff; }
+    </style>
+""", unsafe_allow_html=True)
+
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-def save_history(data):
-    st.session_state.history.append(data)
-
-# Cargar templates
 def load_templates():
     if os.path.exists('templates.json'):
-        with open('templates.json', 'r') as f:
-            return json.load(f)
+        with open('templates.json', 'r') as f: return json.load(f)
     return {}
 
 templates = load_templates()
 
-# Función para generar reporte Markdown
-def generate_markdown_report(company_data, results):
+def generate_full_report(company_data, results):
     date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    md = f"""# 🚀 Informe de Estrategia SEO y SEM
-**Generado el:** {date_str}
+    md = f"""# 🏆 PLAN MAESTRO GOOGLE ADS: {company_data['name'].upper()}
+**Fecha:** {date_str} | **Objetivo:** Lanzamiento Mes 1
 
-## 🏢 Resumen del Negocio
-- **Empresa:** {company_data['name']}
-- **Categoría:** {company_data['category']}
+## 📌 ESTRATEGIA Y ENFOQUE
 - **Ubicación:** {company_data['location']}
-- **Web:** {company_data['url']}
-- **Presupuesto Mensual:** €{company_data['budget']}
+- **Estrategia Geográfica:** {results['technical_config']['geo_strategy']}
+- **Presupuesto Diario:** {results['technical_config']['daily_budget_est']}€
+- **Puja:** {results['technical_config']['bidding_strategy']}
 
-## 📊 Evaluación de Mercado
-- **Puntuación de Competencia:** {results.get('competition_score', 0)}/100
-- **CPC Estimado (Mín):** €{results.get('estimated_cpc_min', 0.0):.2f}
-- **CPC Estimado (Máx):** €{results.get('estimated_cpc_max', 0.0):.2f}
-
-## 🎯 Estrategia de Palabras Clave
-### Keywords Principales (High Intent)
+## 📢 COPYWRITING DE ANUNCIOS (RSA)
 """
-    for kw in results.get('primary_keywords', []):
-        md += f"- `{kw}`\n"
-        
-    md += "\n### Keywords Long-tail (Nicho de Oportunidad)\n"
-    for kw in results.get('longtail_keywords', []):
-        md += f"- `{kw}`\n"
+    for i, ad in enumerate(results['ads']):
+        md += f"### Anuncio {i+1} - Focus: {ad['focus']} ({ad['language']})\n"
+        md += "**Títulos Sugeridos:**\n"
+        for t in ad['titles']: md += f"- {t}\n"
+        md += "\n**Descripciones:**\n"
+        for d in ad['descriptions']: md += f"- {d}\n"
+        md += f"\n**URL Final:** {company_data['url']}/{ad['path1']}\n\n"
 
-    md += "\n## 💡 Recomendaciones Estratégicas\n"
-    for rec in results.get('recommendations', []):
-        md += f"- {rec}\n"
-        
-    md += "\n---\n*Generado automáticamente por SEO Ads Generator V2*"
+    md += "## 🔑 KEYWORDS - INFORME DETALLADO\n"
+    md += "| Keyword | Vol/Mes | CPC Est. | Competencia | Match |\n"
+    md += "| :--- | :--- | :--- | :--- | :--- |\n"
+    for kw in results['keywords']:
+        md += f"| {kw['keyword']} | {kw['volume_est']} | {kw['cpc_est']}€ | {kw['competition']} | {kw['match_type']} |\n"
+
+    md += "\n## 🚫 KEYWORDS NEGATIVAS\n"
+    md += ", ".join(results['negative_keywords']) + "\n"
+
+    md += "\n## 🛠️ EXTENSIONES Y OTROS\n"
+    md += "**Sitelinks:**\n"
+    for sl in results['extensions']['sitelinks']: md += f"- {sl['text']} ({sl['url']})\n"
+    md += "\n**Callouts:**\n"
+    for co in results['extensions']['callouts']: md += f"- {co}\n"
+
+    md += f"\n## 📈 ANÁLISIS DE OPORTUNIDAD\n{results['opportunity_analysis']}\n"
+    md += "\n---\n*Generado por SEO Ads Generator PRO*"
     return md
 
-# Sidebar
+# UI SIDEBAR
 with st.sidebar:
     st.header("⚙️ Configuración")
-    api_key = st.text_input("Gemini API Key", type="password", help="Obtén tu API key en Google AI Studio")
-    if not api_key:
-        st.warning("⚠️ Ingresa tu API Key para continuar")
-        
-    st.markdown("---")
-    st.header("📚 Historial de la Sesión")
-    if not st.session_state.history:
-        st.info("No hay campañas generadas en esta sesión.")
+    api_key = st.text_input("Gemini API Key", type="password")
+    st.divider()
+    if st.session_state.history:
+        st.header("📚 Historial")
+        for item in reversed(st.session_state.history[-5:]):
+            st.button(f"📄 {item['name']}", key=f"hist_{item['time']}")
+
+# MAIN UI
+st.title("🎯 SEO Ads Generator PRO")
+st.markdown("Genera planes de Google Ads de nivel agencia en segundos.")
+
+selected_template = st.selectbox("Cargar plantilla de sector", ["Ninguna"] + list(templates.keys()))
+default_desc = templates[selected_template]['description'] if selected_template != "Ninguna" else ""
+
+with st.form("main_form"):
+    c1, c2 = st.columns(2)
+    with c1:
+        name = st.text_input("Nombre de la Empresa *")
+        category = st.text_input("Categoría de Negocio *", value=selected_template if selected_template != "Ninguna" else "")
+        url = st.text_input("URL del Sitio Web *")
+    with c2:
+        location = st.text_input("Ubicación Objetivo *", placeholder="Ej: Zürich Bellevue, raggio 2km")
+        budget = st.number_input("Presupuesto Mensual (€)", min_value=10, value=500)
+        description = st.text_area("Breve descripción / Brief", value=default_desc)
+    submit = st.form_submit_button("GENERAR PLAN MAESTRO 🚀")
+
+if submit:
+    if not api_key or not all([name, category, url, location]):
+        st.error("Rellena todos los campos y la API Key.")
     else:
-        for i, item in enumerate(reversed(st.session_state.history[-5:])): # Mostrar últimos 5
-            st.markdown(f"**{item['company_name']}** ({item['category']})")
-            st.caption(f"Keywords: {len(item['primary_keywords'])} | Competencia: {item['competition_score']}")
-            st.divider()
-
-# Main Header
-st.title("🚀 SEO Ads Generator V2")
-st.markdown("Genera campañas de Google Ads optimizadas con Inteligencia Artificial.")
-
-# Template selector
-col_t1, col_t2 = st.columns([1, 3])
-with col_t1:
-    selected_template = st.selectbox("Cargar plantilla rápida (opcional)", ["Ninguna"] + list(templates.keys()))
-
-default_desc = ""
-default_budget = 500
-if selected_template != "Ninguna":
-    default_desc = templates[selected_template].get("description", "")
-    default_budget = templates[selected_template].get("budget", 500)
-
-# Formulario principal
-with st.form("company_data_form"):
-    st.subheader("Datos del Negocio")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        name = st.text_input("Nombre de la empresa *", placeholder="Ej: Clínica Dental San Juan")
-        category = st.text_input("Categoría del negocio *", value=selected_template if selected_template != "Ninguna" else "", placeholder="Ej: Dentista, Restaurante, Ecommerce")
-        url = st.text_input("URL del sitio web *", placeholder="Ej: www.misitio.com")
-        
-    with col2:
-        location = st.text_input("Ubicación objetivo *", placeholder="Ej: Madrid, España")
-        description = st.text_area("Breve descripción", value=default_desc, placeholder="Especialistas en implantes y ortodoncia invisible...")
-        budget = st.number_input("Presupuesto mensual (€)", min_value=10, value=default_budget)
-        
-    submit_button = st.form_submit_button("Generar Campaña con Gemini 🚀")
-
-# Ejecución
-if submit_button:
-    if not api_key:
-        st.error("Por favor, ingresa tu Gemini API Key en la barra lateral.")
-    elif not all([name, category, url, location]):
-        st.error("Por favor, rellena todos los campos obligatorios marcados con *.")
-    else:
-        company_data = {
-            "name": name,
-            "category": category,
-            "url": url,
-            "location": location,
-            "description": description,
-            "budget": budget
-        }
-        
-        with st.spinner("Procesando datos y analizando mercado..."):
-            results = run_analysis(api_key, company_data)
+        with st.spinner("Nuestra IA Senior está analizando el mercado y redactando los anuncios..."):
+            results = run_analysis(api_key, {"name":name, "category":category, "url":url, "location":location, "budget":budget, "description":description})
             
-            # Guardar en historial de sesión
-            save_history({
-                "company_name": name,
-                "category": category,
-                "primary_keywords": results.get('primary_keywords', []),
-                "competition_score": results.get('competition_score', 0)
-            })
-            
-            st.divider()
-            st.subheader("📊 Panel de Estrategia SEO")
-            
-            # Row 1: Metricas
-            col_res1, col_res2, col_res3 = st.columns(3)
-            col_res1.metric("Puntuación de Competencia", f"{results.get('competition_score', 0)}/100")
-            col_res2.metric("CPC Mínimo Estimado", f"€{results.get('estimated_cpc_min', 0.0):.2f}")
-            col_res3.metric("CPC Máximo Estimado", f"€{results.get('estimated_cpc_max', 0.0):.2f}")
-            
-            st.divider()
-            
-            # Row 2: Recomendaciones y Keywords
-            col_k1, col_k2 = st.columns(2)
-            with col_k1:
-                st.write("🎯 **Keywords Principales (High Intent):**")
-                for kw in results.get('primary_keywords', []):
-                    st.markdown(f"- `{kw}`")
-                    
-                st.write("🔍 **Keywords Long-tail (Nicho):**")
-                for kw in results.get('longtail_keywords', []):
-                    st.markdown(f"- `{kw}`")
-            
-            with col_k2:
-                st.write("💡 **Recomendaciones Estratégicas:**")
-                for rec in results.get('recommendations', []):
-                    st.info(rec)
-                    
-                # Preview Visual Mockup
-                st.write("📱 **Vista Previa del Anuncio (Mockup)**")
-                headline = f"Mejor {category} en {location}"[:30]
-                desc_text = description[:90] if description else f"Descubre {name}, líderes en {category}."
-                st.markdown(f"""
-                <div style="border: 1px solid #dfe1e5; border-radius: 8px; padding: 15px; background: white; font-family: Arial, sans-serif;">
-                    <div style="color: #202124; font-size: 14px; margin-bottom: 2px;"><strong>Ad</strong> · {url}</div>
-                    <div style="color: #1a0dab; font-size: 20px; text-decoration: none; margin-bottom: 4px;">{headline} | {name}</div>
-                    <div style="color: #4d5156; font-size: 14px; line-height: 1.4;">{desc_text} Consulta nuestras ofertas de temporada y solicita presupuesto sin compromiso.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.divider()
-            
-            # Editor CSV
-            st.subheader("📝 Editor de Anuncios y Descargas")
-            st.write("Modifica el copy directamente en la tabla antes de exportarlo.")
-            
-            ads_data = []
-            for kw in results.get('primary_keywords', []) + results.get('longtail_keywords', []):
-                ads_data.append({
-                    "Campaign": f"Search - {category} - {location}",
-                    "Ad Group": kw.title(),
-                    "Keyword": f"[{kw}]",
-                    "Criterion Type": "Exact",
-                    "Headline 1": f"Mejor {category} en {location}"[:30],
-                    "Headline 2": f"{name} Oficial"[:30],
-                    "Description 1": description[:90] if description else f"Descubre {name}, líderes en {category}.",
-                    "Final URL": url
-                })
+            if results:
+                st.session_state.history.append({"name": name, "time": datetime.datetime.now()})
                 
-            df = pd.DataFrame(ads_data)
-            edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-            
-            # Botones de descarga
-            col_d1, col_d2 = st.columns(2)
-            
-            with col_d1:
-                csv = edited_df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Descargar CSV para Google Ads",
-                    data=csv,
-                    file_name=f"{name.replace(' ', '_')}_google_ads.csv",
-                    mime="text/csv",
-                    type="primary",
-                    use_container_width=True
-                )
+                # DASHBOARD DE RESULTADOS
+                st.header("📊 Resultado del Análisis")
                 
-            with col_d2:
-                md_report = generate_markdown_report(company_data, results)
-                st.download_button(
-                    label="📄 Descargar Informe Estratégico (.md)",
-                    data=md_report.encode('utf-8'),
-                    file_name=f"{name.replace(' ', '_')}_informe_seo.md",
-                    mime="text/markdown",
-                    use_container_width=True
-                )
+                t1, t2, t3 = st.tabs(["📢 Anuncios y Copy", "🔑 Keywords y Negativas", "🛠️ Configuración y Estrategia"])
+                
+                with t1:
+                    st.subheader("Anuncios Responsive Search Ads (RSA)")
+                    for i, ad in enumerate(results['ads']):
+                        with st.expander(f"Anuncio {i+1}: {ad['focus']} ({ad['language']})", expanded=True):
+                            col_a, col_b = st.columns([1, 1])
+                            with col_a:
+                                st.write("**Títulos Sugeridos:**")
+                                for t in ad['titles']: st.text(f"[{len(t)}/30] {t}")
+                            with col_b:
+                                st.write("**Vista Previa Google:**")
+                                st.markdown(f"""
+                                    <div class="ad-preview">
+                                        <div class="ad-url">Ad · {url}/{ad['path1']}</div>
+                                        <div class="ad-title">{ad['titles'][0]} | {ad['titles'][1]}</div>
+                                        <div class="ad-desc">{ad['descriptions'][0]}</div>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                
+                with t2:
+                    col_k1, col_k2 = st.columns([2, 1])
+                    with col_k1:
+                        st.subheader("Plan de Keywords")
+                        df_kw = pd.DataFrame(results['keywords'])
+                        st.dataframe(df_kw, use_container_width=True)
+                    with col_k2:
+                        st.subheader("Keywords Negativas")
+                        st.info(", ".join(results['negative_keywords']))
+
+                with t3:
+                    st.subheader("Configuración Técnica")
+                    c_t1, c_t2 = st.columns(2)
+                    c_t1.write(f"**Geo:** {results['technical_config']['geo_strategy']}")
+                    c_t1.write(f"**Horario:** {results['technical_config']['schedule']}")
+                    c_t2.write(f"**Estrategia de Puja:** {results['technical_config']['bidding_strategy']}")
+                    c_t2.write(f"**Presupuesto Diario Sugerido:** {results['technical_config']['daily_budget_est']}€")
+                    
+                    st.subheader("Post Google Business")
+                    for post in results['google_business_posts']:
+                        st.code(post)
+
+                st.divider()
+                
+                # DESCARGAS
+                st.subheader("📥 Exportar Resultados")
+                col_d1, col_d2 = st.columns(2)
+                
+                # CSV Export (Simplificado a las keywords)
+                csv = df_kw.to_csv(index=False).encode('utf-8')
+                col_d1.download_button("📥 Descargar CSV de Keywords", csv, f"{name}_keywords.csv", "text/csv", use_container_width=True)
+                
+                # MD Report Export
+                full_md = generate_full_report({"name":name, "category":category, "url":url, "location":location, "budget":budget}, results)
+                col_d2.download_button("📄 Descargar Informe Pro (.md)", full_md.encode('utf-8'), f"{name}_plan_ads.md", "text/markdown", type="primary", use_container_width=True)
