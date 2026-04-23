@@ -1,0 +1,18 @@
+{
+  "dentista": {
+    "description": "Especialistas en salud dental, implantes y ortodoncia invisible. Reserva tu cita hoy.",
+    "budget": 800
+  },
+  "restaurante": {
+    "description": "Disfruta de la mejor gastronomía local con ingredientes frescos. Reserva tu mesa.",
+    "budget": 300
+  },
+  "ecommerce": {
+    "description": "Descubre nuestro catálogo online. Envíos gratis y devoluciones sin costo.",
+    "budget": 1500
+  },
+  "fontanero": {
+    "description": "Servicio de fontanería 24h. Reparaciones urgentes y mantenimientos rápidos.",
+    "budget": 400
+  }
+}
