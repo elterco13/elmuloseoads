@@ -8,6 +8,7 @@ from google.genai import types
 from pydantic import BaseModel
 import unicodedata
 import json
+import sys
 
 
 # --- MODELOS PYDANTIC --------------------------------------------------------
@@ -347,6 +348,9 @@ def analyze_website(api_key: str, url: str) -> dict | None:
         )
 
         try:
+            # Force safe ASCII in the entire prompt to prevent UnicodeEncodeError in Windows/Gemini
+            prompt = sanitize(prompt)
+
             response = client.models.generate_content(
                 model='gemini-3.1-flash-lite-preview',
                 contents=prompt,
