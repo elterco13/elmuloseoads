@@ -150,8 +150,8 @@ with st.sidebar:
     st.header("Motor de Razonamiento")
     selected_model = st.selectbox(
         "Modelo para el Plan Maestro",
-        options=["gemini-2.5-pro", "gemini-3.1-pro", "gemini-3.0-pro"],
-        help="Los modelos superiores (3.x) respetan mejor los limites de caracteres (30/90) y calculan CPCs mas precisos."
+        options=["gemini-3.1-flash-lite-preview"],
+        help="Los modelos Flash son mas rapidos, los Pro son mas creativos y precisos."
     )
 
     if not api_key:
@@ -159,7 +159,7 @@ with st.sidebar:
 
     st.divider()
     st.caption("Arquitectura IA:")
-    st.caption("Pre-analisis web: gemini-2.5-flash")
+    st.caption("Pre-analisis web: gemini-3.1-flash-lite-preview")
     st.caption(f"Plan Maestro Ads: {selected_model}")
 
     st.divider()
