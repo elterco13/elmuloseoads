@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from . import logger_utils
+from .utils import sanitize
 import unicodedata
 import json
 import sys
@@ -60,25 +61,6 @@ class BusinessProfile(BaseModel):
 
 # --- UTILIDADES ---------------------------------------------------------------
 
-def sanitize(text: str) -> str:
-    """Convierte texto a ASCII puro eliminando diacriticos y caracteres problematicos.
-
-    Pipeline:
-    1. NFKD descompone caracteres combinados (u + dieresis).
-    2. Filtra categorias 'M' (combining marks) y 'C' (control chars).
-    3. Encode ASCII con replace como red final.
-    """
-    if not isinstance(text, str):
-        text = str(text)
-    # NFKD decomposes: u-umlaut -> u + combining-diaeresis
-    text = unicodedata.normalize('NFKD', text)
-    # Drop combining marks (category M) and control chars (category C)
-    text = ''.join(
-        c for c in text
-        if unicodedata.category(c)[0] not in ('M', 'C')
-    )
-    # Final ASCII encode: anything still non-ASCII becomes '?'
-    return text.encode('ascii', errors='replace').decode('ascii')
 
 
 def _fetch_page(url: str, timeout: int = 10) -> str | None:
@@ -278,7 +260,9 @@ def analyze_website(api_key: str, url: str) -> dict | None:
 
         st.write("Extrayendo perfil de negocio y auditoria SEO con Gemini Flash...")
 
-        client = genai.Client(api_key=api_key)
+        # Clean API Key to prevent encoding errors in headers
+        safe_api_key = sanitize(api_key).strip()
+        client = genai.Client(api_key=safe_api_key)
 
         # Evaluate SEO signal status (pure ASCII labels)
         title_len = seo_signals.get('title_length', 0)
@@ -364,6 +348,12 @@ def analyze_website(api_key: str, url: str) -> dict | None:
                     response_mime_type="application/json",
                     response_schema=BusinessProfile,
                     temperature=0.1,
+                    http_options={
+                        'headers': {
+                            'User-Agent': 'SEO-Ads-Generator-Pro/1.0 (ASCII-Safe)',
+                            'x-goog-api-client': 'gl-python/3.14.0' # Force clean ASCII header
+                        }
+                    }
                 ),
             )
             logger_utils.info("Gemini Flash response received. Parsing JSON...")

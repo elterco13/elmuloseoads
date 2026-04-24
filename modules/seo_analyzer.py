@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from . import logger_utils
+from .utils import sanitize
 import json
 import unicodedata
 
@@ -156,7 +157,9 @@ def run_analysis(api_key: str, model_name: str, company_data: dict) -> dict | No
     title_web, desc_web = scrape_basic(company_data['url'])
     progress_bar.progress(50)
 
-    client = genai.Client(api_key=api_key)
+    # Clean API key to prevent encoding errors in headers
+    safe_api_key = sanitize(api_key).strip()
+    client = genai.Client(api_key=safe_api_key)
 
     prompt = (
         "You are a Senior Performance Marketing Strategist with 10+ years experience in German-speaking markets "
@@ -269,6 +272,12 @@ def run_analysis(api_key: str, model_name: str, company_data: dict) -> dict | No
                 response_mime_type="application/json",
                 response_schema=SEOAnalysisResult,
                 temperature=0.1,
+                http_options={
+                    'headers': {
+                        'User-Agent': 'SEO-Ads-Generator-Pro/1.0 (ASCII-Safe)',
+                        'x-goog-api-client': 'gl-python/3.14.0' # Force clean ASCII header
+                    }
+                }
             ),
         )
         logger_utils.info("Gemini response received. Parsing JSON...")

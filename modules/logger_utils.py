@@ -2,6 +2,40 @@ import streamlit as st
 import datetime
 import traceback
 import os
+import sys
+
+# Try to import httpx for monkeypatching if available
+try:
+    import httpx._models as httpx_models
+    _original_normalize = httpx_models._normalize_header_value
+
+    def _debug_normalize_header_value(value, encoding=None):
+        try:
+            if isinstance(value, bytes):
+                return value
+            return value.encode(encoding or "ascii")
+        except UnicodeEncodeError as e:
+            # Capture the offending value and log it before re-raising
+            error_msg = f"CRITICAL HEADER ENCODING ERROR: Failed to encode header value to ASCII.\nValue (first 100 chars): {str(value)[:100]}...\nLength: {len(str(value))}\nError: {e}"
+            # We use print here because we might not have st.session_state yet or it might be in a different thread
+            print(error_msg, file=sys.stderr)
+            # Try to log to session state if possible
+            try:
+                import streamlit as st
+                if 'app_logs' in st.session_state:
+                    st.session_state.app_logs.append({
+                        "timestamp": datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                        "level": "ERROR",
+                        "message": error_msg
+                    })
+            except:
+                pass
+            raise e
+
+    httpx_models._normalize_header_value = _debug_normalize_header_value
+except Exception as e:
+    # If httpx is not installed yet or path is different, ignore
+    pass
 
 # -- UTF-8 ENFORCEMENT for logging --------------------------------------------
 # Ensures that even if the system defaults to ASCII, we try to handle logs as UTF-8
