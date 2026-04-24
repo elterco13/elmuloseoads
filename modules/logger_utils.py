@@ -4,37 +4,23 @@ import traceback
 import os
 import sys
 
-# Try to import httpx for monkeypatching if available
+# Monkeypatch httpx to FIX non-ASCII header values instead of crashing.
+# The google-genai SDK injects environment metadata (Streamlit build logs,
+# pip output, OS info) into HTTP headers. On Streamlit Cloud this metadata
+# contains non-ASCII characters which cause UnicodeEncodeError.
+# This patch silently replaces those characters so the request succeeds.
 try:
     import httpx._models as httpx_models
-    _original_normalize = httpx_models._normalize_header_value
 
-    def _debug_normalize_header_value(value, encoding=None):
-        try:
-            if isinstance(value, bytes):
-                return value
-            return value.encode(encoding or "ascii")
-        except UnicodeEncodeError as e:
-            # Capture the offending value and log it before re-raising
-            error_msg = f"CRITICAL HEADER ENCODING ERROR: Failed to encode header value to ASCII.\nValue (first 100 chars): {str(value)[:100]}...\nLength: {len(str(value))}\nError: {e}"
-            # We use print here because we might not have st.session_state yet or it might be in a different thread
-            print(error_msg, file=sys.stderr)
-            # Try to log to session state if possible
-            try:
-                import streamlit as st
-                if 'app_logs' in st.session_state:
-                    st.session_state.app_logs.append({
-                        "timestamp": datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3],
-                        "level": "ERROR",
-                        "message": error_msg
-                    })
-            except:
-                pass
-            raise e
+    def _safe_normalize_header_value(value, encoding=None):
+        if isinstance(value, bytes):
+            return value
+        # Encode to ASCII, replacing any non-ASCII chars with '?'
+        # This prevents UnicodeEncodeError from crashing the request.
+        return value.encode("ascii", errors="replace")
 
-    httpx_models._normalize_header_value = _debug_normalize_header_value
-except Exception as e:
-    # If httpx is not installed yet or path is different, ignore
+    httpx_models._normalize_header_value = _safe_normalize_header_value
+except Exception:
     pass
 
 # -- UTF-8 ENFORCEMENT for logging --------------------------------------------
