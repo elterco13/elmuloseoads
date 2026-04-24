@@ -260,9 +260,8 @@ def analyze_website(api_key: str, url: str) -> dict | None:
 
         st.write("Extrayendo perfil de negocio y auditoria SEO con Gemini Flash...")
 
-        # Clean API Key to prevent encoding errors in headers
-        safe_api_key = sanitize(api_key).strip()
-        client = genai.Client(api_key=safe_api_key)
+        # Use raw API Key (sanitization corrupts the key)
+        client = genai.Client(api_key=api_key.strip())
 
         # Evaluate SEO signal status (pure ASCII labels)
         title_len = seo_signals.get('title_length', 0)

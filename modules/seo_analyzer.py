@@ -157,9 +157,8 @@ def run_analysis(api_key: str, model_name: str, company_data: dict) -> dict | No
     title_web, desc_web = scrape_basic(company_data['url'])
     progress_bar.progress(50)
 
-    # Clean API key to prevent encoding errors in headers
-    safe_api_key = sanitize(api_key).strip()
-    client = genai.Client(api_key=safe_api_key)
+    # Use raw API Key (sanitization corrupts the key)
+    client = genai.Client(api_key=api_key.strip())
 
     prompt = (
         "You are a Senior Performance Marketing Strategist with 10+ years experience in German-speaking markets "
