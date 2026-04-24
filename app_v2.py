@@ -18,8 +18,13 @@ import streamlit as st
 import pandas as pd
 from modules.seo_analyzer import run_analysis
 from modules.web_analyzer import analyze_website
+from modules import logger_utils
 import json
 import datetime
+
+# Initialize logger
+logger_utils.init_logger()
+logger_utils.info("App started/reloaded")
 
 st.set_page_config(page_title="SEO Ads Generator PRO", page_icon="X", layout="wide")
 
@@ -190,10 +195,18 @@ if analyze_btn:
     elif not url_input:
         st.error("Introduce una URL.")
     else:
-        profile = analyze_website(api_key, url_input)
-        if profile:
-            st.session_state.prefill = profile
-            st.session_state.prefill['url'] = url_input
+        try:
+            logger_utils.info(f"Starting web analysis for: {url_input}")
+            profile = analyze_website(api_key, url_input)
+            if profile:
+                st.session_state.prefill = profile
+                st.session_state.prefill['url'] = url_input
+                logger_utils.info("Web analysis completed successfully")
+            else:
+                logger_utils.warn("Web analysis returned no profile")
+        except Exception as e:
+            logger_utils.error(f"Critical failure in web analysis step: {e}", exc_info=True)
+            st.error(f"Error critico en el analisis: {e}")
 
 if st.session_state.prefill:
     p = st.session_state.prefill
@@ -288,10 +301,16 @@ if submit:
         st.error("Rellena todos los campos obligatorios (*).")
     else:
         with st.spinner(f"Generando plan completo con {selected_model}... (30-60 segundos)"):
-            results = run_analysis(api_key, selected_model, {
-                "name": name, "category": category, "url": url,
-                "location": location, "budget": budget, "description": description
-            })
+            try:
+                logger_utils.info(f"Starting Master Plan generation for {name} using {selected_model}")
+                results = run_analysis(api_key, selected_model, {
+                    "name": name, "category": category, "url": url,
+                    "location": location, "budget": budget, "description": description
+                })
+            except Exception as e:
+                logger_utils.error(f"Critical failure in Master Plan generation: {e}", exc_info=True)
+                results = None
+                st.error(f"Error critico en la generacion del plan: {e}")
 
         if results:
             st.session_state.history.append({"name": name, "time": datetime.datetime.now()})
@@ -469,3 +488,6 @@ if submit:
                 type="primary",
                 use_container_width=True
             )
+
+# --- FOOTER & LOGS -----------------------------------------------------------
+logger_utils.display_logs()

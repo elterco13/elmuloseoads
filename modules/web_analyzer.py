@@ -6,6 +6,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+from . import logger_utils
 import unicodedata
 import json
 import sys
@@ -84,10 +85,13 @@ def _fetch_page(url: str, timeout: int = 10) -> str | None:
     """Descarga el HTML de una URL y lo devuelve como texto."""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        logger_utils.info(f"Fetching: {url}")
         resp = requests.get(url, timeout=timeout, headers=headers)
         resp.raise_for_status()
+        logger_utils.info(f"Successfully fetched {url} ({len(resp.content)} bytes)")
         return resp.content.decode('utf-8', errors='ignore')
-    except Exception:
+    except Exception as e:
+        logger_utils.warn(f"Failed to fetch {url}: {e}")
         return None
 
 
@@ -232,6 +236,7 @@ def _get_subpages(base_url: str, html: str) -> list[str]:
             if len(relevant) >= 3:
                 break
 
+    logger_utils.info(f"Found {len(relevant)} relevant subpages for deeper analysis")
     return relevant
 
 
@@ -350,6 +355,7 @@ def analyze_website(api_key: str, url: str) -> dict | None:
         try:
             # Force safe ASCII in the entire prompt to prevent UnicodeEncodeError in Windows/Gemini
             prompt = sanitize(prompt)
+            logger_utils.info(f"Sending web analysis prompt to Gemini Flash. Size: {len(prompt)} chars")
 
             response = client.models.generate_content(
                 model='gemini-3.1-flash-lite-preview',
@@ -360,10 +366,13 @@ def analyze_website(api_key: str, url: str) -> dict | None:
                     temperature=0.1,
                 ),
             )
+            logger_utils.info("Gemini Flash response received. Parsing JSON...")
             result = json.loads(response.text)
+            logger_utils.info("Business Profile JSON parsed successfully")
             status.update(label="Analisis web y auditoria SEO completados", state="complete")
             return result
         except Exception as e:
+            logger_utils.error(f"Gemini Flash API or Parsing error: {e}", exc_info=True)
             status.update(label="Error en el analisis", state="error")
             st.error(f"Error en Gemini Flash: {e}")
             return None

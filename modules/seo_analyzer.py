@@ -6,6 +6,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+from . import logger_utils
 import json
 import unicodedata
 
@@ -111,10 +112,14 @@ def google_autocomplete(query: str) -> list[str]:
     """Keywords gratuitas via Google Suggest."""
     url = f"https://suggestqueries.google.com/complete/search?client=firefox&q={query}"
     try:
+        logger_utils.info(f"Google Suggest query: {query}")
         resp = requests.get(url, timeout=5)
         resp.encoding = 'utf-8'
-        return [sanitize(s) for s in resp.json()[1] if s.lower().startswith(query.lower())][:10]
-    except Exception:
+        results = [sanitize(s) for s in resp.json()[1] if s.lower().startswith(query.lower())][:10]
+        logger_utils.info(f"Google Suggest returned {len(results)} results")
+        return results
+    except Exception as e:
+        logger_utils.warn(f"Google Suggest failed: {e}")
         return [f"{query} near me", f"best {query}"]
 
 
@@ -132,8 +137,10 @@ def scrape_basic(url: str) -> tuple[str, str]:
             meta_m = re.search(r'<meta\s+property=["\']og:description["\'][^>]*content=["\']([^"\']*)', html, re.I)
         title = sanitize(title_m.group(1).strip()) if title_m else "Sin titulo"
         desc = sanitize(meta_m.group(1).strip()) if meta_m else "Sin meta description"
+        logger_utils.info(f"Basic scrape of {url} successful: {title[:30]}...")
         return title, desc
-    except Exception:
+    except Exception as e:
+        logger_utils.warn(f"Basic scrape of {url} failed: {e}")
         return "Error de lectura", "No accesible"
 
 
@@ -254,6 +261,7 @@ def run_analysis(api_key: str, model_name: str, company_data: dict) -> dict | No
     )
 
     try:
+        logger_utils.info(f"Sending Master Plan prompt to Gemini ({model_name}). Size: {len(prompt)} chars")
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -263,9 +271,13 @@ def run_analysis(api_key: str, model_name: str, company_data: dict) -> dict | No
                 temperature=0.1,
             ),
         )
+        logger_utils.info("Gemini response received. Parsing JSON...")
+        result = json.loads(response.text)
+        logger_utils.info("Master Plan JSON parsed successfully")
         progress_bar.progress(100)
-        return json.loads(response.text)
+        return result
     except Exception as e:
+        logger_utils.error(f"Gemini API or Parsing error: {e}", exc_info=True)
         progress_bar.progress(100)
         st.error(f"Error en la generacion con Gemini: {e}")
         return None
