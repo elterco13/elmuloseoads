@@ -21,6 +21,7 @@ from modules.web_analyzer import analyze_website
 from modules import logger_utils
 import json
 import datetime
+from modules.html_report import generate_html_report
 
 # Initialize logger
 logger_utils.init_logger()
@@ -468,7 +469,11 @@ if submit:
             kws_all = results.get('keywords', [])
             df_kw_export = pd.DataFrame(kws_all) if kws_all else pd.DataFrame()
 
-            col_d1, col_d2 = st.columns(2)
+            company_data_export = {"name": name, "category": category, "url": url, "location": location, "budget": budget}
+            full_md   = generate_full_report(company_data_export, results)
+            full_html = generate_html_report(company_data_export, results)
+
+            col_d1, col_d2, col_d3 = st.columns(3)
             if not df_kw_export.empty:
                 csv_bytes = df_kw_export.to_csv(index=False).encode('utf-8')
                 col_d1.download_button(
@@ -479,12 +484,19 @@ if submit:
                     use_container_width=True
                 )
 
-            full_md = generate_full_report({"name": name, "category": category, "url": url, "location": location, "budget": budget}, results)
             col_d2.download_button(
-                "Informe Pro Completo (.md)",
+                "Informe MD",
                 full_md.encode('utf-8'),
                 f"{name.replace(' ','_')}_plan_maestro.md",
                 "text/markdown",
+                use_container_width=True
+            )
+            
+            col_d3.download_button(
+                "DESCARGAR INFORME HTML",
+                full_html.encode('utf-8'),
+                f"{name.replace(' ','_')}_plan_maestro.html",
+                "text/html",
                 type="primary",
                 use_container_width=True
             )
